@@ -1,4 +1,5 @@
 import logging
+import re
 
 from django.conf import settings
 from django.utils.datastructures import MultiValueDictKeyError
@@ -26,6 +27,7 @@ log = logging.getLogger("map_test")
 def choose_file(request):
     temp = loader.get_template('pdf2MySQL/upload_file.html')
     return HttpResponse(temp.render())
+
 
 @csrf_exempt
 def upload_file(request):
@@ -56,6 +58,7 @@ def handle_pdf_data(request):
     if request.method == 'POST':  # 请求方法为POST时，进行处理
         try:
             myFile = request.FILES['myfile']  # 获取上传的文件，如果没有文件，则默认为None
+            ext_file = request.FILES['ext_file']
         except MultiValueDictKeyError as err:
             log.warning(err)
             return JsonResponse({"errorCode": "400",
@@ -80,16 +83,121 @@ def handle_pdf_data(request):
         ################################################################
         pdffilestored = os.path.join(settings.MEDIA_ROOT, myFile.name)
 
-        with pdfplumber.open(pdffilestored) as pdf:
+        # with pdfplumber.open(pdffilestored) as pdf:
+        #     content = ''
+        #     # len(pdf.pages)为PDF文档页数
+        #     for i in range(len(pdf.pages)):
+        #         # pdf.pages[i] 是读取PDF文档第i+1页
+        #         page = pdf.pages[i]
+        #         # page.extract_text()函数即读取文本内容，下面这步是去掉文档最下面的页码
+        #         page_content = '\n'.join(page.extract_text().split('\n')[1:-1])
+        #         content = content + page_content
+        # print(content)
+
+        # with pdfplumber.open(ext_file) as pdf2:
+        #     content = ''
+        #     # len(pdf.pages)为PDF文档页数
+        #     for i in range(len(pdf2.pages)):
+        #         # pdf.pages[i] 是读取PDF文档第i+1页
+        #         page = pdf2.pages[i]
+        #         # page.extract_text()函数即读取文本内容，下面这步是去掉文档最下面的页码
+        #         page_content = '\n'.join(page.extract_text().split('\n')[1:-1])
+        #         content = content + page_content
+        #     print(content)
+
+        with pdfplumber.open(ext_file) as pdf1:
             content = ''
-            # len(pdf.pages)为PDF文档页数
-            for i in range(len(pdf.pages)):
-                # pdf.pages[i] 是读取PDF文档第i+1页
-                page = pdf.pages[i]
-                # page.extract_text()函数即读取文本内容，下面这步是去掉文档最下面的页码
-                page_content = '\n'.join(page.extract_text().split('\n')[1:-1])
-                content = content + page_content
-            # print(content)
+            pages = pdf1.pages
+            tbl = pages[0].extract_tables()
+            print(tbl)
+            print(tbl[0][-2])
+            data = str(tbl[0][-2])
+            data = data.replace('\\n', '&')
+            data = data.replace('\\uf120', '---')
+            print(data)
+            #             data = '''
+            # 'COMPARISONS&GROWTH & ACHIEVEMENT MEASURES&Norms Percentile&GROWTH ACHIEVEMENT&- - Above Mean&No growth tests available&81 ST&Quadrant Chart&- -&No growth tests available&PROJECTIONS&No projections available&READABILITY MEASURES&Lexile* Flesch-Kincaid Grade Level&570L - 720L 3.5 to 4.2', '', 'INSTRUCTIONAL AREAS&193 Vocabulary Use and Functions&---Relative Strength&196 Language and Writing&---Relative Strength&201 Foundational Skills&---Relative Strength&208 Literature and Informational Text&---Relative Strength', '', 'GROWTH GOALS&SPRING 2021&Customize the growth target for this student&\uf106&by setting a growth goal&Past Goals&There are no previous goals for this student.'INSTRUCTIONAL AREAS&Literary Text: Language, Craft, and&185&Structure&---Relative Strength&185 Vocabulary: Acquisition and Use&---Relative Strength&Informational Text: Language, Craft,&197&and Structure---Relative Strength&199 Literary Text: Key Ideas and Details&---Relative StrengthInformational Text: Key Ideas and&203&Details&---Relative Strength&''INSTRUCTIONAL AREAS&Writing: Write, Revise Texts for&213&Purpose and Audience&---Relative Strength&Language: Understand, Edit for&218&Mechanics---Relative Strength&Language: Understand, Edit for&223&Grammar, Usage&---Relative Strength', '', 'GROWTH GOALS&SPRING 2021&Customize the growth target for this student&\uf106&by setting a growth goal&Past Goals&There are no previous goals for this student.'                  '''
+
+            regex1 = '&(\d+ (TH|RD|ST|ND))&'
+            regex2 = '\d\.\d to \d\.\d'
+            regex3 = '\d+L - \d+L'
+            regex4 = 'GROWTH GOALS&([\w ]+)'
+            value1 = re.search(regex1, data)
+            value2 = re.findall(regex2, data)
+            value3 = re.findall(regex3, data)
+            value4 = re.findall(regex4, data)
+
+            if value1:
+                print(value1.group())
+                print(value1.group().strip('&'))
+            if value2:
+                print(value2[0])
+            if value3:
+                print(value3[0])
+            if value4:
+                print(value4[0])
+            # domain_list_one_line = ['Literary Text: Key Ideas and Details',
+            #                         'Vocabulary: Acquisition and Use',
+            #                         'Vocabulary Use and Functions',
+            #                         'Language and Writing',
+            #                         'Foundational Skills',
+            #                         'Literature and Informational Text',
+            #                         ]
+            # domain_list_two_lines = [
+            #     'Informational Text: Language, Craft,',
+            #     'Literary Text: Language, Craft, and',
+            #     'Informational Text: Key Ideas and',
+            #     'Writing: Write, Revise Texts for',
+            #     'Language: Understand, Edit for'
+            # ]
+            domain_name_reg_list = ['Literary Text: Key Ideas and Details',
+                                    'Informational Text: Language, Craft,[\d&]+and Structure',
+                                    'Literary Text: Language, Craft, and[\d&]+Structure',
+                                    'Vocabulary: Acquisition and Use',
+                                    'Informational Text: Key Ideas and[\d&]+Details',
+                                    'Vocabulary Use and Functions',
+                                    'Language and Writing',
+                                    'Foundational Skills',
+                                    'Literature and Informational Text',
+                                    'Writing: Write, Revise Texts for[\d&]+Purpose and Audience',
+                                    'Language: Understand, Edit for[\d&]+Mechanics',
+                                    'Language: Understand, Edit for[\d&]+Grammar, Usage'
+                                    ]
+            full_domain_list = ['Literary Text: Key Ideas and Details',
+                                'Informational Text: Language, Craft, and Structure',
+                                'Literary Text: Language, Craft, and Structure',
+                                'Vocabulary: Acquisition and Use',
+                                'Informational Text: Key Ideas and Details',
+                                'Vocabulary Use and Functions',
+                                'Language and Writing',
+                                'Foundational Skills',
+                                'Literature and Informational Text',
+                                'Writing: Write, Revise Texts for Purpose and Audience',
+                                'Language: Understand, Edit for Mechanics',
+                                'Language: Understand, Edit for Grammar, Usage'
+                                ]
+            for i in range(len(domain_name_reg_list)):
+                reg_focus = '(' + domain_name_reg_list[i] + ')[&]?---[&]?Suggested Area of Focus'
+                reg_strength = '(' + domain_name_reg_list[i] + ')[&]?---[&]?Relative Strength'
+                for domain in re.findall(reg_focus, data):
+                    name = re.sub("&[\\d&]*", " ", domain).strip()
+                    print("Focus: " + name)
+                    print("Index: {}".format(i))
+                for domain in re.findall(reg_strength, data):
+                    name = re.sub("&[\\d&]*", " ", domain).strip()
+                    print("Strength: " + name)
+                    print("Index: {}".format(i))
+            # for item in domain_list_one_line:
+            #     reg_focus = '(' + item + '[ \d\w,]*)[&]?---[&]?Suggested Area of Focus'
+            #     reg_strength = '(' + item + '[ \d\w,]*)[&]?---[&]?Relative Strength'
+            #     for domain in re.findall(reg_focus, data):
+            #         name = re.sub("&[\\d&]*", " ", domain).strip()
+            #         print("Focus: " + name)
+            #         print("Index: {}".format(full_domain_list.index(name)))
+            #     for domain in re.findall(reg_strength, data):
+            #         name = re.sub("&[\\d&]*", " ", domain).strip()
+            #         print("Strength: " + name)
+            #         print("Index: {}".format(full_domain_list.index(name)))
 
         ################################################################
         #  trans end
@@ -98,8 +206,9 @@ def handle_pdf_data(request):
         if test_type == "star_early":
             ExtractStarData(content, phonenumber)
         elif test_type == "map_test":
-            stu_map_pro = extract_map_data(content, phonenumber)
-            draw_map_table(stu_map_pro)
+            # stu_map_pro = extract_map_data(content, phonenumber)
+            # draw_map_table(stu_map_pro)
+            print("map test!")
         elif test_type == "star_reading":
             draw_star_reading_table()
         else:
@@ -201,7 +310,7 @@ def get_student_exam_stats(request, phone):
                     round((result.AlphabeticPrinciple + result.ConceptOfWord + result.VisualDiscrimination) / 3, 1),
                     result.PhonemicAwareness, result.Phonics, (result.StructuralAnalysis + result.Vocabulary) / 2,
                     round((
-                              result.SentenceLevelComprehension + result.ParagraphLevelComprehension + result.EarlyNumeracy) / 3,
+                                  result.SentenceLevelComprehension + result.ParagraphLevelComprehension + result.EarlyNumeracy) / 3,
                           1)]
                 sub_domain_score_trend_value.append(sub_domain_score_data)
 
@@ -222,5 +331,3 @@ def get_student_exam_stats(request, phone):
                 "message": "Succeed to get latest test result of user {}!".format(phone),
                 "success": True
             }, status=200)
-
-

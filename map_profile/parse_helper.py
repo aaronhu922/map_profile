@@ -644,7 +644,12 @@ def extract_map_data(data, phonenumber):
                                         'Literary Text: Language, Craft, and Structure SCORE', \
                                         'Literary Text: Language, Craft, and Structure STANDARD ERROR', \
                                         'Literary Text: Key Ideas and Details SCORE', \
-                                        'Literary Text: Key Ideas and Details STANDARD ERROR']
+                                        'Literary Text: Key Ideas and Details STANDARD ERROR',
+                                        'Vocabulary Use and Functions', 'Foundational Skills', 'Language and Writing',
+                                        'Literature and Informational Text',
+                                        'Writing: Write, Revise Texts for Purpose and Audience',
+                                        'Language: Understand, Edit for Grammar, Usage',
+                                        'Language: Understand, Edit for Mechanics']
 
     mapnwea_student_profile_summary_info_dict = {}
 
@@ -653,9 +658,9 @@ def extract_map_data(data, phonenumber):
     data = data.replace('NBSP', ' ')
     data = data.replace(' ', ' ')
 
-    # with open(phonenumber + ".txt", "w+", encoding='utf-8') as f:
-    #     f.write(data)
-    # f.close()
+    with open(phonenumber + ".txt", "w+", encoding='utf-8') as f:
+        f.write(data)
+    f.close()
     ##################################################################
     ##    定制对报告的简要信息的提取正则表达式  Extract Brief Info
     #################################################################
@@ -709,37 +714,46 @@ def extract_map_data(data, phonenumber):
             temp_source = "Informational Text: Key Ideas and Details"
             extract_regex = "(?<=" + temp_source + ")\s\d{1,3}"
         elif source == "Informational Text: Key Ideas and Details STANDARD ERROR":
-            temp_source1 = "Draw Conclusions, Infer, Predict"
             temp_source0 = "Informational Text: Key Ideas and Details"
-            extract_regex = temp_source0 + "(.*?)" + temp_source1
+            extract_regex = "(?<=" + temp_source0 + ")\s+\d{1,3}\s±\s[\d\.]+"
         elif source == "Vocabulary: Acquisition and Use SCORE":
             temp_source = "Vocabulary: Acquisition and Use"
             extract_regex = "(?<=" + temp_source + ")\s+\d{3}"
         elif source == "Vocabulary: Acquisition and Use STANDARD ERROR":
             temp_source0 = "Vocabulary: Acquisition and Use"
-            temp_source1 = "Context Clues and Multiple-Meaning Words"
-            extract_regex = temp_source0 + "(.*?)" + temp_source1
+            extract_regex = "(?<=" + temp_source0 + ")\s+\d{1,3}\s±\s[\d\.]+"
         elif source == "Informational Text: Language, Craft, and Structure SCORE":
             temp_source = "Informational Text: Language, Craft, and Structure"
             extract_regex = "(?<=" + temp_source + ")\s+\d{1,3}"
         elif source == "Informational Text: Language, Craft, and Structure STANDARD ERROR":
             temp_source0 = "Informational Text: Language, Craft, and Structure"
-            temp_source1 = "Point of View, Purpose, Perspective, Figurative and Rhetorical Language"
-            extract_regex = temp_source0 + "(.*?)" + temp_source1
+            extract_regex = "(?<=" + temp_source0 + ")\s+\d{1,3}\s±\s[\d\.]+"
         elif source == "Literary Text: Language, Craft, and Structure SCORE":
             temp_source = "Literary Text: Language, Craft, and Structure"
             extract_regex = "(?<=" + temp_source + ")\s+\d{1,3}"
         elif source == "Literary Text: Language, Craft, and Structure STANDARD ERROR":
             temp_source0 = "Literary Text: Language, Craft, and Structure"
-            temp_source1 = "Figurative, Connotative Meanings; Tone"
-            extract_regex = temp_source0 + "(.*?)" + temp_source1
+            extract_regex = "(?<=" + temp_source0 + ")\s+\d{1,3}\s±\s[\d\.]+"
         elif source == "Literary Text: Key Ideas and Details SCORE":
             temp_source = "Literary Text: Key Ideas and Details"
             extract_regex = "(?<=" + temp_source + ")\s+\d{1,3}"
         elif source == "Literary Text: Key Ideas and Details STANDARD ERROR":
             temp_source0 = "Literary Text: Key Ideas and Details"
-            temp_source1 = "Draw Conclusions, Infer, Predict"
-            extract_regex = temp_source0 + "(.*?)" + temp_source1
+            extract_regex = "(?<=" + temp_source0 + ")\s+\d{1,3}\s±\s[\d\.]+"
+        elif source == "Vocabulary Use and Functions":
+            extract_regex = "(?<=" + source + ")\s+\d{1,3}"
+        elif source == "Foundational Skills":
+            extract_regex = "(?<=" + source + ")\s+\d{1,3}"
+        elif source == "Language and Writing":
+            extract_regex = "(?<=" + source + ")\s+\d{1,3}"
+        elif source == "Literature and Informational Text":
+            extract_regex = "(?<=" + source + ")\s+\d{1,3}"
+        elif source == "Writing: Write, Revise Texts for Purpose and Audience":
+            extract_regex = "(?<=" + source + ")\s+\d{1,3}"
+        elif source == "Language: Understand, Edit for Grammar, Usage":
+            extract_regex = "(?<=" + source + ")\s+\d{1,3}"
+        elif source == "Language: Understand, Edit for Mechanics":
+            extract_regex = "(?<=" + source + ")\s+\d{1,3}"
         else:
             pass
         logging.info("-----regex of {}-----{}---".format(source, extract_regex))
@@ -791,15 +805,19 @@ def extract_map_data(data, phonenumber):
     check_list_extract_regex = "CCSS.ELA-Literacy.(.*?):"
     check_list_value = re.findall(check_list_extract_regex, data)
 
+    items_count = len(check_list_value)
+
     mapnwea_student_profile_reinfore_develop_status_dict = {}
     logging.info("---check items list:{}".format(check_list_value))
-    logging.info("---check items list size:{}".format(len(check_list_value)))
+    logging.info("---check items list size:{}".format(items_count))
 
-    for item in check_list_value:
+    for i in range(items_count-1):
+    # for item in check_list_value:
+        item = check_list_value[i]
         check_item_desc_reg = item + ':(.*?)CCSS.ELA-Literacy'
         desc_text = re.findall(check_item_desc_reg, data)
         for desc in desc_text:
-            logging.info("text ---{}".format(desc))
+            # logging.info("text ---{}".format(desc))
             if ("REINFORCE" in str(desc)) and ("DEVELOP" in str(desc)):
                 mapnwea_student_profile_reinfore_develop_status_dict[item] = "REINFORCE_DEVELOP"
             elif ("REINFORCE" in str(desc)) and ("DEVELOP" not in str(desc)):
